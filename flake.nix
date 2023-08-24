@@ -40,7 +40,7 @@
           code = pkgs.callPackage ./default.nix {inherit advisory-db crane rust-overlay nix-filter;};
         in {
           packages = with code; {
-            inherit topiary-playground;
+            inherit topiary-playground topiary-queries;
             default = topiary-cli;
           };
 
