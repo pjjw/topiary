@@ -33,6 +33,12 @@ impl From<&PathBuf> for QueryPath {
     }
 }
 
+impl From<String> for QueryPath {
+    fn from(content: String) -> Self {
+        QueryPath::BuiltIn(content)
+    }
+}
+
 impl Display for QueryPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -49,7 +55,7 @@ impl Display for QueryPath {
 /// These are captured by the CLI parser, with `cli::AtLeastOneInput` and `cli::ExactlyOneInput`.
 /// We use this struct to normalise the interface for downstream (using `From` implementations).
 pub enum InputFrom {
-    Stdin(SupportedLanguage, Option<QueryPath>),
+    Stdin(SupportedLanguage, Option<PathBuf>),
     Files(Vec<PathBuf>),
 }
 
@@ -59,10 +65,7 @@ impl From<&ExactlyOneInput> for InputFrom {
             ExactlyOneInput {
                 stdin: Some(FromStdin { language, query }),
                 ..
-            } => InputFrom::Stdin(
-                language.to_owned(),
-                query.as_ref().map(|p| p.into()).to_owned(),
-            ),
+            } => InputFrom::Stdin(language.to_owned(), query.as_ref().map(|p| p.into())),
 
             ExactlyOneInput {
                 file: Some(path), ..
@@ -80,10 +83,7 @@ impl From<&AtLeastOneInput> for InputFrom {
             AtLeastOneInput {
                 stdin: Some(FromStdin { language, query }),
                 ..
-            } => InputFrom::Stdin(
-                language.to_owned(),
-                query.as_ref().map(|p| p.into()).to_owned(),
-            ),
+            } => InputFrom::Stdin(language.to_owned(), query.as_ref().map(|p| p.into())),
 
             AtLeastOneInput { files, .. } => InputFrom::Files(files.to_owned()),
         }
@@ -178,7 +178,20 @@ impl<'cfg, 'i> Inputs<'cfg> {
             InputFrom::Stdin(language, query) => {
                 vec![(|| {
                     let language = language.to_language(config);
-                    let query = query.unwrap_or(language.query_file()?.into());
+                    // let query = query.unwrap_or(language.query_file()?.into());
+                    let query = match query {
+                        // The user specified a query file
+                        Some(p) => p.into(),
+                        // The user did not specify a file, try the default locations
+                        None => match language.query_file() {
+                            Ok(p) => p.into(),
+                            // For some reason, Topiary could not find any
+                            // matching file in a default location. As a final attempt, use try to the the
+                            // builtin ones. Store the error, return that if we
+                            // fail to find anything, because the builtin error might be unexpected.
+                            Err(e) => to_query(language).map_err(|_| e)?.into(),
+                        },
+                    };
 
                     Ok(InputFile {
                         source: InputSource::Stdin,
@@ -303,58 +316,19 @@ impl<'cfg> TryFrom<&InputFile<'cfg>> for OutputFile {
     }
 }
 
-fn to_query(language: Language) -> CLIResult<TopiaryQuery> {
+fn to_query(language: &Language) -> CLIResult<String> {
     match language.name.as_str() {
-        "bash" => TopiaryQuery::new(
-            &tree_sitter_bash::language().into(),
-            topiary_queries::bash(),
-        )
-        .map_err(TopiaryError::from),
-        "json" => TopiaryQuery::new(
-            &tree_sitter_json::language().into(),
-            topiary_queries::json(),
-        )
-        .map_err(TopiaryError::from),
-        "nickel" => TopiaryQuery::new(
-            &tree_sitter_nickel::language().into(),
-            topiary_queries::nickel(),
-        )
-        .map_err(TopiaryError::from),
-        "ocaml" => TopiaryQuery::new(
-            &tree_sitter_ocaml::language_ocaml().into(),
-            topiary_queries::ocaml(),
-        )
-        .map_err(TopiaryError::from),
-        "ocaml_interface" => TopiaryQuery::new(
-            &tree_sitter_ocaml::language_ocaml_interface().into(),
-            topiary_queries::ocaml_interface(),
-        )
-        .map_err(TopiaryError::from),
-        "ocamllex" => TopiaryQuery::new(
-            &tree_sitter_ocamllex::language().into(),
-            topiary_queries::ocamllex(),
-        )
-        .map_err(TopiaryError::from),
-        "rust" => TopiaryQuery::new(
-            &tree_sitter_rust::language().into(),
-            topiary_queries::rust(),
-        )
-        .map_err(TopiaryError::from),
-        "toml" => TopiaryQuery::new(
-            &tree_sitter_toml::language().into(),
-            topiary_queries::toml(),
-        )
-        .map_err(TopiaryError::from),
-        "tree_sitter_query" => TopiaryQuery::new(
-            &tree_sitter_query::language().into(),
-            topiary_queries::tree_sitter_query(),
-        )
-        .map_err(TopiaryError::from),
+        "bash" => Ok(topiary_queries::bash().to_owned()),
+        "json" => Ok(topiary_queries::json().to_owned()),
+        "nickel" => Ok(topiary_queries::nickel().to_owned()),
+        "ocaml" => Ok(topiary_queries::ocaml().to_owned()),
+        "ocaml_interface" => Ok(topiary_queries::ocaml_interface().to_owned()),
+        "ocamllex" => Ok(topiary_queries::ocamllex().to_owned()),
+        "rust" => Ok(topiary_queries::rust().to_owned()),
+        "toml" => Ok(topiary_queries::toml().to_owned()),
+        "tree_sitter_query" => Ok(topiary_queries::tree_sitter_query().to_owned()),
         name => Err(TopiaryError::Bin(
-            format!(
-                "The specified language is unsupported: {}",
-                name.to_string()
-            ),
+            format!("The specified language is unsupported: {}", name),
             Some(CLIError::UnsupportedLanguage(name.to_string())),
         )),
     }
