@@ -189,7 +189,10 @@ impl<'cfg, 'i> Inputs<'cfg> {
                             // matching file in a default location. As a final attempt, use try to the the
                             // builtin ones. Store the error, return that if we
                             // fail to find anything, because the builtin error might be unexpected.
-                            Err(e) => to_query(language).map_err(|_| e)?.into(),
+                            Err(e) => {
+                                log::warn!("No query files found in any of the expected locations. Falling back to compile-time included files.");
+                                to_query(language).map_err(|_| e)?.into()
+                            }
                         },
                     };
 
