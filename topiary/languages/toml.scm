@@ -52,9 +52,14 @@
 
 ; Softlines. These become either a space or a newline, depending on whether we
 ; format their node as single-line or multi-line.
-[
-  ","
-] @append_spaced_softline
+(
+  "," @append_spaced_softline
+  .
+  [
+    (comment) @do_nothing
+    (_)
+  ]
+)
 
 ; Indent arrays. They will only be indented inmulti-line blocks.
 

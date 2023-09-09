@@ -73,14 +73,13 @@ hosts = [
 cve = [ "CVE-2018-13410", "CVE-2018-1340" ] # garbage CVEs
 comment = "this cve is only valid with attacker-controlled flags to zip"
 
-["unzip"]
-cve = [
-  "CVE-2018-13410",
-  "CVE-2018-1340"
+["inline.comments"]
+multiline_with_comments = [
+  "bar",
+  "blee",
+  "baz", # dont
+  "boo"
 ]
-cve = [ "CVE-2018-13410", "foo", "CVE-2018-1340" ]
-
-comment = "this cve is only valid with attacker-controlled flags to zip"
 
 [dog."tater.man"]
 type.name = "pug"
