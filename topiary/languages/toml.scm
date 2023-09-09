@@ -61,6 +61,28 @@
   ]
 )
 
+; remove trailing comma from last element of single line array
+(array
+  . ("," @delete . "]")(#single_line_only!)
+)
+
+; add trailing comma if absent to last string of multiline array
+(array
+  . (((string) @append_delimiter) . ","* @do_nothing . (comment)? . "]")(#delimiter! ",")
+  (#multi_line_only!)
+)
+
+; remove trailing comma from last element of single line array
+(array
+  . ("," @delete . "]")(#single_line_only!)
+)
+
+; add trailing comma if absent to last string of multiline array
+(array
+  . (((string) @append_delimiter) . ","* @do_nothing . (comment)? . "]")(#delimiter! ",")
+  (#multi_line_only!)
+)
+
 ; Indent arrays. They will only be indented inmulti-line blocks.
 
 (array
